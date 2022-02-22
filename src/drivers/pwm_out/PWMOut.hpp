@@ -147,7 +147,8 @@ private:
 	bool		_pwm_initialized{false};
 
 	bool           _esc_calibration_mode{false};
-	hrt_abstime    _esc_calibration_last{0};
+	hrt_abstime    _esc_calibration_start{0};
+	int32_t        _param_sys_cal_esc{0};
 
 	unsigned	_num_disarmed_set{0};
 

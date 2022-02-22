@@ -412,7 +412,7 @@ bool PWMOut::updateOutputs(bool stop_motors, uint16_t outputs[MAX_ACTUATORS],
 			   unsigned num_outputs, unsigned num_control_groups_updated)
 {
 	/* output to the servos */
-	if (_pwm_initialized) {
+	if (_pwm_initialized && !_esc_calibration_mode && (0 == _param_sys_cal_esc)) {
 		for (size_t i = 0; i < num_outputs; i++) {
 			if (!_mixing_output.isFunctionSet(i)) {
 				// do not run any signal on disabled channels
@@ -446,25 +446,32 @@ void PWMOut::Run()
 	}
 
 	// ESC calibration
-	if (_pwm_initialized && !_mixing_output.armed().armed) {
-		if (_mixing_output.armed().in_esc_calibration_mode) {
+	if ((_mixing_output.armed().timestamp > 0) && // Wait for mixer to set PWM frequency
+	    _pwm_initialized && !_mixing_output.armed().armed) {
+
+		if (_mixing_output.armed().in_esc_calibration_mode || (1 == _param_sys_cal_esc)) {
 			_esc_calibration_mode = true;
-			_esc_calibration_last = _mixing_output.armed().timestamp;
+			_param_sys_cal_esc = 0;
+			param_set(param_find("SYS_CAL_ESC"), &_param_sys_cal_esc);
+			_esc_calibration_start = hrt_absolute_time();
+		}
 
-			// set outputs to maximum
-			for (size_t i = 0; i < _num_outputs; i++) {
-				// TODO: ESCs only
-				//   - PWM only (no oneshot)
-				if (_pwm_mask & (1 << (i + _output_base))) {
-					up_pwm_servo_set(_output_base + i, PWM_DEFAULT_MAX);
+		if (_esc_calibration_mode) {
+
+			// PWM to MAX
+			if (hrt_elapsed_time(&_esc_calibration_start) < 6_s) {
+				// set outputs to maximum
+				for (size_t i = 0; i < _num_outputs; i++) {
+					// TODO: ESCs only
+					//   - PWM only (no oneshot)
+					if (_pwm_mask & (1 << (i + _output_base))) {
+						up_pwm_servo_set(_output_base + i, PWM_DEFAULT_MAX);
+					}
 				}
-			}
 
-			ScheduleDelayed(10_ms);
-			return;
+				// PWM to MIN
 
-		} else if (_esc_calibration_mode) {
-			if (hrt_elapsed_time(&_esc_calibration_last) < 3_s) {
+			} else if (hrt_elapsed_time(&_esc_calibration_start) < 9_s) {
 				// set outputs to minimum
 				for (size_t i = 0; i < _num_outputs; i++) {
 					// TODO: ESCs only
@@ -473,14 +480,14 @@ void PWMOut::Run()
 					}
 				}
 
-				ScheduleDelayed(10_ms);
-				return;
+				// calibration finished
 
 			} else {
-				// calibration finished
 				_esc_calibration_mode = false;
-				_esc_calibration_last = 0;
 			}
+
+			ScheduleDelayed(10_ms);
+			return;
 		}
 	}
 
@@ -551,6 +558,8 @@ void PWMOut::update_params()
 	int32_t pwm_disarmed_default = 0;
 	int32_t pwm_rate_default = 50;
 	int32_t pwm_default_channels = 0;
+
+	param_get(param_find("SYS_CAL_ESC"), &_param_sys_cal_esc);
 
 	const char *prefix;
 

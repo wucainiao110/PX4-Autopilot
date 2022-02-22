@@ -176,6 +176,21 @@ PARAM_DEFINE_INT32(SYS_CAL_TMIN, 5);
 PARAM_DEFINE_INT32(SYS_CAL_TMAX, 10);
 
 /**
+ * Enable auto start of ESCs calibration at the next power up.
+ *
+ * 0 : Set to 0 to do nothing
+ * 1 : Set to 1 to start a calibration at next boot
+ * This parameter is reset to zero when ESCs calibration starts.
+ *
+ * default (0, no calibration)
+ *
+ * @group System
+ * @min 0
+ * @max 1
+ */
+PARAM_DEFINE_INT32(SYS_CAL_ESC, 0);
+
+/**
  * Control if the vehicle has a GPS
  *
  * Disable this if the system has no GPS.
@@ -187,6 +202,7 @@ PARAM_DEFINE_INT32(SYS_CAL_TMAX, 10);
  *
  * @group System
  */
+
 PARAM_DEFINE_INT32(SYS_HAS_GPS, 1);
 
 /**
