@@ -599,6 +599,24 @@ void EKF2::Run()
 
 void EKF2::PublishAidSourceStatus(const hrt_abstime &timestamp)
 {
+	// GPS velocity
+	if (_ekf.aid_src_gnss_vel().timestamp_sample > _status_gnss_vel_pub_last) {
+		auto status{_ekf.aid_src_gnss_vel()};
+		status.estimator_instance = _instance;
+		status.timestamp = hrt_absolute_time();
+		_estimator_aid_src_gnss_vel_pub.publish(status);
+		_status_gnss_vel_pub_last = status.timestamp_sample;
+	}
+
+	// GPS position
+	if (_ekf.aid_src_gnss_pos().timestamp_sample > _status_gnss_pos_pub_last) {
+		auto status{_ekf.aid_src_gnss_pos()};
+		status.estimator_instance = _instance;
+		status.timestamp = hrt_absolute_time();
+		_estimator_aid_src_gnss_pos_pub.publish(status);
+		_status_gnss_pos_pub_last = status.timestamp_sample;
+	}
+
 	// fake position
 	if (_ekf.aid_src_fake_pos().timestamp_sample > _status_fake_pos_pub_last) {
 		auto status{_ekf.aid_src_fake_pos()};
