@@ -3522,9 +3522,7 @@ Commander::update_control_mode()
 bool
 Commander::stabilization_required()
 {
-	// is a rotary-wing or fixed-wing/VTOL in fixed-wing mode and stabilistion is on
-	return (_status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING ||
-		_param_com_fw_perm_stab.get());
+	return _status.vehicle_type == vehicle_status_s::VEHICLE_TYPE_ROTARY_WING;
 }
 
 void
