@@ -219,7 +219,7 @@ enum ACCEL_CONFIG0_BIT : uint8_t {
 // FIFO_CONFIG5
 enum FIFO_CONFIG5_BIT : uint8_t {
 	FIFO_RESUME_PARTIAL_RD = Bit4,
-	FIFO_WM_GT_TH          = Bit5,
+
 	FIFO_HIRES_EN          = Bit3,
 	FIFO_TMST_FSYNC_EN     = Bit2,
 	FIFO_GYRO_EN           = Bit1,
@@ -240,7 +240,6 @@ enum INT_SOURCE0_BIT : uint8_t {
 	RESET_DONE_INT1_EN = Bit4,
 	DRDY_INT1_EN       = Bit3,
 	FIFO_THS_INT1_EN   = Bit2, // FIFO threshold interrupt routed to INT1
-	FIFO_FULL_INT1_EN  = Bit1,
 	AGC_RDY_INT1_EN    = Bit0,
 };
 
