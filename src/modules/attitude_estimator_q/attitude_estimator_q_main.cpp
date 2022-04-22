@@ -94,6 +94,8 @@ private:
 
 	void update_gps_position();
 
+	void update_vehicle_local_position();
+
 	void update_parameters(bool force = false);
 
 	bool init_attq();
@@ -113,7 +115,7 @@ private:
 	uORB::SubscriptionInterval	_parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
 	uORB::Subscription 		_vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
-	uORB::Subscription 		_local_position_sub{ORB_ID(vehicle_local_position)};
+	uORB::Subscription 		_vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::Subscription		_vision_odom_sub{ORB_ID(vehicle_visual_odometry)};
 	uORB::Subscription		_mocap_odom_sub{ORB_ID(vehicle_mocap_odometry)};
 	uORB::Subscription		_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
@@ -141,7 +143,7 @@ private:
 
 	hrt_abstime	_last_time{0};
 
-	bool		_inited{false};
+	bool		_initialized{false};
 	bool		_data_good{false};
 	bool		_ext_hdg_good{false};
 
@@ -306,35 +308,7 @@ AttitudeEstimatorQ::Run()
 
 		update_gps_position();
 
-		if (_local_position_sub.updated()) {
-			vehicle_local_position_s lpos;
-
-			if (_local_position_sub.copy(&lpos)) {
-
-				if (_param_att_acc_comp.get() && (hrt_elapsed_time(&lpos.timestamp) < 20_ms)
-				    && lpos.v_xy_valid && lpos.v_z_valid && (lpos.eph < 5.0f) && _inited) {
-
-					/* position data is actual */
-					const Vector3f vel(lpos.vx, lpos.vy, lpos.vz);
-
-					/* velocity updated */
-					if (_vel_prev_t != 0 && lpos.timestamp != _vel_prev_t) {
-						float vel_dt = (lpos.timestamp - _vel_prev_t) / 1e6f;
-						/* calculate acceleration in body frame */
-						_pos_acc = _q.rotateVectorInverse((vel - _vel_prev) / vel_dt);
-					}
-
-					_vel_prev_t = lpos.timestamp;
-					_vel_prev = vel;
-
-				} else {
-					/* position data is outdated, reset acceleration */
-					_pos_acc.zero();
-					_vel_prev.zero();
-					_vel_prev_t = 0;
-				}
-			}
-		}
+		update_vehicle_local_position();
 
 		/* time from previous iteration */
 		hrt_abstime now = hrt_absolute_time();
@@ -363,6 +337,39 @@ void AttitudeEstimatorQ::update_gps_position()
 			if (_param_att_mag_decl_a.get() && (gps.eph < 20.0f)) {
 				// set magnetic declination automatically
 				update_mag_declination(get_mag_declination_radians(gps.lat, gps.lon));
+			}
+		}
+	}
+}
+
+void AttitudeEstimatorQ::update_vehicle_local_position()
+{
+	if (_vehicle_local_position_sub.updated()) {
+		vehicle_local_position_s lpos;
+
+		if (_vehicle_local_position_sub.copy(&lpos)) {
+
+			if (_param_att_acc_comp.get() && (hrt_elapsed_time(&lpos.timestamp) < 20_ms)
+			    && lpos.v_xy_valid && lpos.v_z_valid && (lpos.eph < 5.0f) && _initialized) {
+
+				/* position data is actual */
+				const Vector3f vel(lpos.vx, lpos.vy, lpos.vz);
+
+				/* velocity updated */
+				if (_vel_prev_t != 0 && lpos.timestamp != _vel_prev_t) {
+					float vel_dt = (lpos.timestamp - _vel_prev_t) / 1e6f;
+					/* calculate acceleration in body frame */
+					_pos_acc = _q.rotateVectorInverse((vel - _vel_prev) / vel_dt);
+				}
+
+				_vel_prev_t = lpos.timestamp;
+				_vel_prev = vel;
+
+			} else {
+				/* position data is outdated, reset acceleration */
+				_pos_acc.zero();
+				_vel_prev.zero();
+				_vel_prev_t = 0;
 			}
 		}
 	}
@@ -429,19 +436,19 @@ AttitudeEstimatorQ::init_attq()
 	if (PX4_ISFINITE(_q(0)) && PX4_ISFINITE(_q(1)) &&
 	    PX4_ISFINITE(_q(2)) && PX4_ISFINITE(_q(3)) &&
 	    _q.length() > 0.95f && _q.length() < 1.05f) {
-		_inited = true;
+		_initialized = true;
 
 	} else {
-		_inited = false;
+		_initialized = false;
 	}
 
-	return _inited;
+	return _initialized;
 }
 
 bool
 AttitudeEstimatorQ::update(float dt)
 {
-	if (!_inited) {
+	if (!_initialized) {
 
 		if (!_data_good) {
 			return false;
@@ -555,7 +562,7 @@ void
 AttitudeEstimatorQ::update_mag_declination(float new_declination)
 {
 	// Apply initial declination or trivial rotations without changing estimation
-	if (!_inited || fabsf(new_declination - _mag_decl) < 0.0001f) {
+	if (!_initialized || fabsf(new_declination - _mag_decl) < 0.0001f) {
 		_mag_decl = new_declination;
 
 	} else {
