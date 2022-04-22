@@ -99,6 +99,7 @@ struct imuSample {
 	Vector3f    delta_vel{};		///< delta velocity in body frame (integrated accelerometer measurements) (m/sec)
 	float       delta_ang_dt{0.f};	///< delta angle integration period (sec)
 	float       delta_vel_dt{0.f};	///< delta velocity integration period (sec)
+	bool        delta_ang_clipping[3] {}; ///< true (per axis) if this sample contained any gyro clipping
 	bool        delta_vel_clipping[3] {}; ///< true (per axis) if this sample contained any accelerometer clipping
 };
 
@@ -418,6 +419,7 @@ union fault_status_u {
 		bool bad_acc_bias: 1;	///< 15 - true if bad delta velocity bias estimates have been detected
 		bool bad_acc_vertical: 1; ///< 16 - true if bad vertical accelerometer data has been detected
 		bool bad_acc_clipping: 1; ///< 17 - true if delta velocity data contains clipping (asymmetric railing)
+		bool bad_gyro_clipping : 1; ///< 18 - true if delta angle data contains clipping (asymmetric railing)
 	} flags;
 	uint32_t value;
 

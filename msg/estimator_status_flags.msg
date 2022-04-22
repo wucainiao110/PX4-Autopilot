@@ -57,6 +57,7 @@ bool fs_bad_pos_d             # 14 - true if fusion of the Down position has enc
 bool fs_bad_acc_bias          # 15 - true if bad delta velocity bias estimates have been detected
 bool fs_bad_acc_vertical      # 16 - true if bad vertical accelerometer data has been detected
 bool fs_bad_acc_clipping      # 17 - true if delta velocity data contains clipping (asymmetric railing)
+bool fs_bad_gyro_clipping     # 18 - true if delta angle data contains clipping (asymmetric railing)
 
 
 # innovation test failures

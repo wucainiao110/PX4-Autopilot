@@ -66,6 +66,7 @@ uint32 filter_fault_flags	# Bitmask to indicate EKF internal faults
 # 15 - true if bad delta velocity bias estimates have been detected
 # 16 - true if bad vertical accelerometer data has been detected
 # 17 - true if delta velocity data contains clipping (asymmetric railing)
+# 18 - true if delta angle data contains clipping (asymmetric railing)
 
 float32 pos_horiz_accuracy # 1-Sigma estimated horizontal position accuracy relative to the estimators origin (m)
 float32 pos_vert_accuracy # 1-Sigma estimated vertical position accuracy relative to the estimators origin (m)

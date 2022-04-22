@@ -381,10 +381,16 @@ void EKF2::Run()
 			imu_sample_new.delta_vel_dt = imu.delta_velocity_dt * 1.e-6f;
 			imu_sample_new.delta_vel = Vector3f{imu.delta_velocity};
 
+			if (imu.delta_angle_clipping > 0) {
+				imu_sample_new.delta_ang_clipping[0] = imu.delta_angle_clipping & vehicle_imu_s::ANGLE_CLIPPING_ROLL;
+				imu_sample_new.delta_ang_clipping[1] = imu.delta_angle_clipping & vehicle_imu_s::ANGLE_CLIPPING_PITCH;
+				imu_sample_new.delta_ang_clipping[2] = imu.delta_angle_clipping & vehicle_imu_s::ANGLE_CLIPPING_YAW;
+			}
+
 			if (imu.delta_velocity_clipping > 0) {
-				imu_sample_new.delta_vel_clipping[0] = imu.delta_velocity_clipping & vehicle_imu_s::CLIPPING_X;
-				imu_sample_new.delta_vel_clipping[1] = imu.delta_velocity_clipping & vehicle_imu_s::CLIPPING_Y;
-				imu_sample_new.delta_vel_clipping[2] = imu.delta_velocity_clipping & vehicle_imu_s::CLIPPING_Z;
+				imu_sample_new.delta_vel_clipping[0] = imu.delta_velocity_clipping & vehicle_imu_s::VELOCITY_CLIPPING_X;
+				imu_sample_new.delta_vel_clipping[1] = imu.delta_velocity_clipping & vehicle_imu_s::VELOCITY_CLIPPING_Y;
+				imu_sample_new.delta_vel_clipping[2] = imu.delta_velocity_clipping & vehicle_imu_s::VELOCITY_CLIPPING_Z;
 			}
 
 			imu_dt = imu.delta_angle_dt;
@@ -441,9 +447,15 @@ void EKF2::Run()
 			imu_sample_new.delta_vel = Vector3f{sensor_combined.accelerometer_m_s2} * imu_sample_new.delta_vel_dt;
 
 			if (sensor_combined.accelerometer_clipping > 0) {
-				imu_sample_new.delta_vel_clipping[0] = sensor_combined.accelerometer_clipping & sensor_combined_s::CLIPPING_X;
-				imu_sample_new.delta_vel_clipping[1] = sensor_combined.accelerometer_clipping & sensor_combined_s::CLIPPING_Y;
-				imu_sample_new.delta_vel_clipping[2] = sensor_combined.accelerometer_clipping & sensor_combined_s::CLIPPING_Z;
+				imu_sample_new.delta_vel_clipping[0] = sensor_combined.accelerometer_clipping & sensor_combined_s::VELOCITY_CLIPPING_X;
+				imu_sample_new.delta_vel_clipping[1] = sensor_combined.accelerometer_clipping & sensor_combined_s::VELOCITY_CLIPPING_Y;
+				imu_sample_new.delta_vel_clipping[2] = sensor_combined.accelerometer_clipping & sensor_combined_s::VELOCITY_CLIPPING_Z;
+			}
+
+			if (sensor_combined.gyro_clipping > 0) {
+				imu_sample_new.delta_ang_clipping[0] = sensor_combined.gyro_clipping & sensor_combined_s::ANGLE_CLIPPING_ROLL;
+				imu_sample_new.delta_ang_clipping[1] = sensor_combined.gyro_clipping & sensor_combined_s::ANGLE_CLIPPING_PITCH;
+				imu_sample_new.delta_ang_clipping[2] = sensor_combined.gyro_clipping & sensor_combined_s::ANGLE_CLIPPING_YAW;
 			}
 
 			imu_dt = sensor_combined.gyro_integral_dt;
@@ -634,22 +646,22 @@ void EKF2::Run()
 
 void EKF2::PublishAttitude(const hrt_abstime &timestamp)
 {
+	vehicle_attitude_s vehicle_attitude{};
+
 	if (_ekf.attitude_valid()) {
 		// generate vehicle attitude quaternion data
-		vehicle_attitude_s att;
-		att.timestamp_sample = timestamp;
+		vehicle_attitude.timestamp_sample = timestamp;
 		const Quatf q{_ekf.calculate_quaternion()};
-		q.copyTo(att.q);
+		q.copyTo(vehicle_attitude.q);
 
-		_ekf.get_quat_reset(&att.delta_q_reset[0], &att.quat_reset_counter);
-		att.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
-		_attitude_pub.publish(att);
+		_ekf.get_quat_reset(&vehicle_attitude.delta_q_reset[0], &vehicle_attitude.quat_reset_counter);
+		vehicle_attitude.timestamp = _replay_mode ? timestamp : hrt_absolute_time();
+		_attitude_pub.publish(vehicle_attitude);
 
 	}  else if (_replay_mode) {
 		// in replay mode we have to tell the replay module not to wait for an update
 		// we do this by publishing an attitude with zero timestamp
-		vehicle_attitude_s att{};
-		_attitude_pub.publish(att);
+		_attitude_pub.publish(vehicle_attitude);
 	}
 }
 
@@ -1273,59 +1285,60 @@ void EKF2::PublishStatusFlags(const hrt_abstime &timestamp)
 		estimator_status_flags_s status_flags{};
 		status_flags.timestamp_sample = _ekf.get_imu_sample_delayed().time_us;
 
-		status_flags.control_status_changes   = _filter_control_status_changes;
-		status_flags.cs_tilt_align            = _ekf.control_status_flags().tilt_align;
-		status_flags.cs_yaw_align             = _ekf.control_status_flags().yaw_align;
-		status_flags.cs_gps                   = _ekf.control_status_flags().gps;
-		status_flags.cs_opt_flow              = _ekf.control_status_flags().opt_flow;
-		status_flags.cs_mag_hdg               = _ekf.control_status_flags().mag_hdg;
-		status_flags.cs_mag_3d                = _ekf.control_status_flags().mag_3D;
-		status_flags.cs_mag_dec               = _ekf.control_status_flags().mag_dec;
-		status_flags.cs_in_air                = _ekf.control_status_flags().in_air;
-		status_flags.cs_wind                  = _ekf.control_status_flags().wind;
-		status_flags.cs_baro_hgt              = _ekf.control_status_flags().baro_hgt;
-		status_flags.cs_rng_hgt               = _ekf.control_status_flags().rng_hgt;
-		status_flags.cs_gps_hgt               = _ekf.control_status_flags().gps_hgt;
-		status_flags.cs_ev_pos                = _ekf.control_status_flags().ev_pos;
-		status_flags.cs_ev_yaw                = _ekf.control_status_flags().ev_yaw;
-		status_flags.cs_ev_hgt                = _ekf.control_status_flags().ev_hgt;
-		status_flags.cs_fuse_beta             = _ekf.control_status_flags().fuse_beta;
-		status_flags.cs_mag_field_disturbed   = _ekf.control_status_flags().mag_field_disturbed;
-		status_flags.cs_fixed_wing            = _ekf.control_status_flags().fixed_wing;
-		status_flags.cs_mag_fault             = _ekf.control_status_flags().mag_fault;
-		status_flags.cs_fuse_aspd             = _ekf.control_status_flags().fuse_aspd;
-		status_flags.cs_gnd_effect            = _ekf.control_status_flags().gnd_effect;
-		status_flags.cs_rng_stuck             = _ekf.control_status_flags().rng_stuck;
-		status_flags.cs_gps_yaw               = _ekf.control_status_flags().gps_yaw;
-		status_flags.cs_mag_aligned_in_flight = _ekf.control_status_flags().mag_aligned_in_flight;
-		status_flags.cs_ev_vel                = _ekf.control_status_flags().ev_vel;
-		status_flags.cs_synthetic_mag_z       = _ekf.control_status_flags().synthetic_mag_z;
-		status_flags.cs_vehicle_at_rest       = _ekf.control_status_flags().vehicle_at_rest;
-		status_flags.cs_gps_yaw_fault         = _ekf.control_status_flags().gps_yaw_fault;
-		status_flags.cs_rng_fault             = _ekf.control_status_flags().rng_fault;
+		status_flags.control_status_changes     = _filter_control_status_changes;
+		status_flags.cs_tilt_align              = _ekf.control_status_flags().tilt_align;
+		status_flags.cs_yaw_align               = _ekf.control_status_flags().yaw_align;
+		status_flags.cs_gps                     = _ekf.control_status_flags().gps;
+		status_flags.cs_opt_flow                = _ekf.control_status_flags().opt_flow;
+		status_flags.cs_mag_hdg                 = _ekf.control_status_flags().mag_hdg;
+		status_flags.cs_mag_3d                  = _ekf.control_status_flags().mag_3D;
+		status_flags.cs_mag_dec                 = _ekf.control_status_flags().mag_dec;
+		status_flags.cs_in_air                  = _ekf.control_status_flags().in_air;
+		status_flags.cs_wind                    = _ekf.control_status_flags().wind;
+		status_flags.cs_baro_hgt                = _ekf.control_status_flags().baro_hgt;
+		status_flags.cs_rng_hgt                 = _ekf.control_status_flags().rng_hgt;
+		status_flags.cs_gps_hgt                 = _ekf.control_status_flags().gps_hgt;
+		status_flags.cs_ev_pos                  = _ekf.control_status_flags().ev_pos;
+		status_flags.cs_ev_yaw                  = _ekf.control_status_flags().ev_yaw;
+		status_flags.cs_ev_hgt                  = _ekf.control_status_flags().ev_hgt;
+		status_flags.cs_fuse_beta               = _ekf.control_status_flags().fuse_beta;
+		status_flags.cs_mag_field_disturbed     = _ekf.control_status_flags().mag_field_disturbed;
+		status_flags.cs_fixed_wing              = _ekf.control_status_flags().fixed_wing;
+		status_flags.cs_mag_fault               = _ekf.control_status_flags().mag_fault;
+		status_flags.cs_fuse_aspd               = _ekf.control_status_flags().fuse_aspd;
+		status_flags.cs_gnd_effect              = _ekf.control_status_flags().gnd_effect;
+		status_flags.cs_rng_stuck               = _ekf.control_status_flags().rng_stuck;
+		status_flags.cs_gps_yaw                 = _ekf.control_status_flags().gps_yaw;
+		status_flags.cs_mag_aligned_in_flight   = _ekf.control_status_flags().mag_aligned_in_flight;
+		status_flags.cs_ev_vel                  = _ekf.control_status_flags().ev_vel;
+		status_flags.cs_synthetic_mag_z         = _ekf.control_status_flags().synthetic_mag_z;
+		status_flags.cs_vehicle_at_rest         = _ekf.control_status_flags().vehicle_at_rest;
+		status_flags.cs_gps_yaw_fault           = _ekf.control_status_flags().gps_yaw_fault;
+		status_flags.cs_rng_fault               = _ekf.control_status_flags().rng_fault;
 		status_flags.cs_inertial_dead_reckoning = _ekf.control_status_flags().inertial_dead_reckoning;
 		status_flags.cs_wind_dead_reckoning     = _ekf.control_status_flags().wind_dead_reckoning;
 		status_flags.cs_rng_kin_consistent      = _ekf.control_status_flags().rng_kin_consistent;
 
-		status_flags.fault_status_changes     = _filter_fault_status_changes;
-		status_flags.fs_bad_mag_x             = _ekf.fault_status_flags().bad_mag_x;
-		status_flags.fs_bad_mag_y             = _ekf.fault_status_flags().bad_mag_y;
-		status_flags.fs_bad_mag_z             = _ekf.fault_status_flags().bad_mag_z;
-		status_flags.fs_bad_hdg               = _ekf.fault_status_flags().bad_hdg;
-		status_flags.fs_bad_mag_decl          = _ekf.fault_status_flags().bad_mag_decl;
-		status_flags.fs_bad_airspeed          = _ekf.fault_status_flags().bad_airspeed;
-		status_flags.fs_bad_sideslip          = _ekf.fault_status_flags().bad_sideslip;
-		status_flags.fs_bad_optflow_x         = _ekf.fault_status_flags().bad_optflow_X;
-		status_flags.fs_bad_optflow_y         = _ekf.fault_status_flags().bad_optflow_Y;
-		status_flags.fs_bad_vel_n             = _ekf.fault_status_flags().bad_vel_N;
-		status_flags.fs_bad_vel_e             = _ekf.fault_status_flags().bad_vel_E;
-		status_flags.fs_bad_vel_d             = _ekf.fault_status_flags().bad_vel_D;
-		status_flags.fs_bad_pos_n             = _ekf.fault_status_flags().bad_pos_N;
-		status_flags.fs_bad_pos_e             = _ekf.fault_status_flags().bad_pos_E;
-		status_flags.fs_bad_pos_d             = _ekf.fault_status_flags().bad_pos_D;
-		status_flags.fs_bad_acc_bias          = _ekf.fault_status_flags().bad_acc_bias;
-		status_flags.fs_bad_acc_vertical      = _ekf.fault_status_flags().bad_acc_vertical;
-		status_flags.fs_bad_acc_clipping      = _ekf.fault_status_flags().bad_acc_clipping;
+		status_flags.fault_status_changes       = _filter_fault_status_changes;
+		status_flags.fs_bad_mag_x               = _ekf.fault_status_flags().bad_mag_x;
+		status_flags.fs_bad_mag_y               = _ekf.fault_status_flags().bad_mag_y;
+		status_flags.fs_bad_mag_z               = _ekf.fault_status_flags().bad_mag_z;
+		status_flags.fs_bad_hdg                 = _ekf.fault_status_flags().bad_hdg;
+		status_flags.fs_bad_mag_decl            = _ekf.fault_status_flags().bad_mag_decl;
+		status_flags.fs_bad_airspeed            = _ekf.fault_status_flags().bad_airspeed;
+		status_flags.fs_bad_sideslip            = _ekf.fault_status_flags().bad_sideslip;
+		status_flags.fs_bad_optflow_x           = _ekf.fault_status_flags().bad_optflow_X;
+		status_flags.fs_bad_optflow_y           = _ekf.fault_status_flags().bad_optflow_Y;
+		status_flags.fs_bad_vel_n               = _ekf.fault_status_flags().bad_vel_N;
+		status_flags.fs_bad_vel_e               = _ekf.fault_status_flags().bad_vel_E;
+		status_flags.fs_bad_vel_d               = _ekf.fault_status_flags().bad_vel_D;
+		status_flags.fs_bad_pos_n               = _ekf.fault_status_flags().bad_pos_N;
+		status_flags.fs_bad_pos_e               = _ekf.fault_status_flags().bad_pos_E;
+		status_flags.fs_bad_pos_d               = _ekf.fault_status_flags().bad_pos_D;
+		status_flags.fs_bad_acc_bias            = _ekf.fault_status_flags().bad_acc_bias;
+		status_flags.fs_bad_acc_vertical        = _ekf.fault_status_flags().bad_acc_vertical;
+		status_flags.fs_bad_acc_clipping        = _ekf.fault_status_flags().bad_acc_clipping;
+		status_flags.fs_bad_gyro_clipping       = _ekf.fault_status_flags().bad_gyro_clipping;
 
 		status_flags.innovation_fault_status_changes = _innov_check_fail_status_changes;
 		status_flags.reject_hor_vel                  = _ekf.innov_check_fail_status_flags().reject_hor_vel;
