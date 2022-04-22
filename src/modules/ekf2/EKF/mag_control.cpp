@@ -82,7 +82,7 @@ void Ekf::controlMagFusion()
 	// yaw fusion is run selectively to enable yaw gyro bias learning when stationary on
 	// ground and to prevent uncontrolled yaw variance growth
 	// Also fuse zero heading innovation during the leveling fine alignment step to keep the yaw variance low
-	if (_params.mag_fusion_type >= MAG_FUSE_TYPE_NONE
+	if (_params.mag_fusion_type >= MAG_FUSE_TYPE::NONE
 	    || _control_status.flags.mag_fault
 	    || !_control_status.flags.tilt_align) {
 
@@ -111,18 +111,18 @@ void Ekf::controlMagFusion()
 		default:
 
 		/* fallthrough */
-		case MAG_FUSE_TYPE_AUTO:
+		case MAG_FUSE_TYPE::AUTO:
 			selectMagAuto();
 			break;
 
-		case MAG_FUSE_TYPE_INDOOR:
+		case MAG_FUSE_TYPE::INDOOR:
 
 		/* fallthrough */
-		case MAG_FUSE_TYPE_HEADING:
+		case MAG_FUSE_TYPE::HEADING:
 			startMagHdgFusion();
 			break;
 
-		case MAG_FUSE_TYPE_3D:
+		case MAG_FUSE_TYPE::MAG_3D:
 			startMag3DFusion();
 			break;
 		}
@@ -188,7 +188,7 @@ void Ekf::runOnGroundYawReset()
 
 bool Ekf::canResetMagHeading() const
 {
-	return !isStrongMagneticDisturbance() && (_params.mag_fusion_type != MAG_FUSE_TYPE_NONE);
+	return !isStrongMagneticDisturbance() && (_params.mag_fusion_type != MAG_FUSE_TYPE::NONE);
 }
 
 void Ekf::runInAirYawReset(const Vector3f &mag_sample)
@@ -306,7 +306,7 @@ bool Ekf::shouldInhibitMag() const
 	// is available, assume that we are operating indoors and the magnetometer should not be used.
 	// Also inhibit mag fusion when a strong magnetic field interference is detected or the user
 	// has explicitly stopped magnetometer use.
-	const bool user_selected = (_params.mag_fusion_type == MAG_FUSE_TYPE_INDOOR);
+	const bool user_selected = (_params.mag_fusion_type == MAG_FUSE_TYPE::INDOOR);
 
 	const bool heading_not_required_for_navigation = !_control_status.flags.gps
 			&& !_control_status.flags.ev_pos
@@ -319,7 +319,7 @@ bool Ekf::shouldInhibitMag() const
 void Ekf::checkMagFieldStrength(const Vector3f &mag_sample)
 {
 	if (_params.check_mag_strength
-	    && ((_params.mag_fusion_type <= MAG_FUSE_TYPE_3D) || (_params.mag_fusion_type == MAG_FUSE_TYPE_INDOOR && _control_status.flags.gps))) {
+	    && ((_params.mag_fusion_type <= MAG_FUSE_TYPE::MAG_3D) || (_params.mag_fusion_type == MAG_FUSE_TYPE::INDOOR && _control_status.flags.gps))) {
 
 		if (PX4_ISFINITE(_mag_strength_gps)) {
 			constexpr float wmm_gate_size = 0.2f; // +/- Gauss

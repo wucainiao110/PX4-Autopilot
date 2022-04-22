@@ -447,12 +447,12 @@ bool EstimatorInterface::initialise_interface(uint64_t timestamp)
 	}
 
 	// mag mode
-	if (_params.mag_fusion_type != MAG_FUSE_TYPE_NONE) {
+	if (_params.mag_fusion_type != MAG_FUSE_TYPE::NONE) {
 		max_time_delay_ms = math::max(_params.mag_delay_ms, max_time_delay_ms);
 	}
 
 	// range aid or range height
-	if (_params.range_aid || (_params.vdist_sensor_type == VDIST_SENSOR_RANGE)) {
+	if (_params.range_aid || (_params.vdist_sensor_type == VDIST_SENSOR::RANGE)) {
 		max_time_delay_ms = math::max(_params.range_delay_ms, max_time_delay_ms);
 	}
 

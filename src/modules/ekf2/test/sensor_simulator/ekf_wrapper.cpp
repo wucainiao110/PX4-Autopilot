@@ -12,7 +12,7 @@ EkfWrapper::~EkfWrapper()
 
 void EkfWrapper::setBaroHeight()
 {
-	_ekf_params->vdist_sensor_type = VDIST_SENSOR_BARO;
+	_ekf_params->vdist_sensor_type = VDIST_SENSOR::BARO;
 }
 
 bool EkfWrapper::isIntendingBaroHeightFusion() const
@@ -22,7 +22,7 @@ bool EkfWrapper::isIntendingBaroHeightFusion() const
 
 void EkfWrapper::setGpsHeight()
 {
-	_ekf_params->vdist_sensor_type = VDIST_SENSOR_GPS;
+	_ekf_params->vdist_sensor_type = VDIST_SENSOR::GPS;
 }
 
 bool EkfWrapper::isIntendingGpsHeightFusion() const
@@ -32,7 +32,7 @@ bool EkfWrapper::isIntendingGpsHeightFusion() const
 
 void EkfWrapper::setRangeHeight()
 {
-	_ekf_params->vdist_sensor_type = VDIST_SENSOR_RANGE;
+	_ekf_params->vdist_sensor_type = VDIST_SENSOR::RANGE;
 }
 
 bool EkfWrapper::isIntendingRangeHeightFusion() const
@@ -42,7 +42,7 @@ bool EkfWrapper::isIntendingRangeHeightFusion() const
 
 void EkfWrapper::setVisionHeight()
 {
-	_ekf_params->vdist_sensor_type = VDIST_SENSOR_EV;
+	_ekf_params->vdist_sensor_type = VDIST_SENSOR::EV;
 }
 
 bool EkfWrapper::isIntendingVisionHeightFusion() const
@@ -167,7 +167,7 @@ bool EkfWrapper::isIntendingMag3DFusion() const
 
 void EkfWrapper::setMagFuseTypeNone()
 {
-	_ekf_params->mag_fusion_type = MAG_FUSE_TYPE_NONE;
+	_ekf_params->mag_fusion_type = MAG_FUSE_TYPE::NONE;
 }
 
 bool EkfWrapper::isWindVelocityEstimated() const

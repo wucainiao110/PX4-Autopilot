@@ -484,7 +484,7 @@ void Ekf::controlOpticalFlowFusion()
 		    && !_control_status.flags.opt_flow // we are not yet using flow data
 		    && !_inhibit_flow_use) {
 			// If the heading is valid and use is not inhibited , start using optical flow aiding
-			if (_control_status.flags.yaw_align || _params.mag_fusion_type == MAG_FUSE_TYPE_NONE) {
+			if (_control_status.flags.yaw_align || _params.mag_fusion_type == MAG_FUSE_TYPE::NONE) {
 				// set the flag and reset the fusion timeout
 				ECL_INFO("starting optical flow fusion");
 				_control_status.flags.opt_flow = true;
@@ -842,7 +842,7 @@ void Ekf::controlHeightFusion()
 		ECL_ERR("Invalid hgt mode: %" PRIi32, _params.vdist_sensor_type);
 
 	// FALLTHROUGH
-	case VDIST_SENSOR_BARO:
+	case VDIST_SENSOR::BARO:
 		if (do_range_aid) {
 			if (!_control_status.flags.rng_hgt && _range_sensor.isDataHealthy()) {
 				startRngAidHgtFusion();
@@ -862,7 +862,7 @@ void Ekf::controlHeightFusion()
 
 		break;
 
-	case VDIST_SENSOR_RANGE:
+	case VDIST_SENSOR::RANGE:
 
 		// If we are supposed to be using range finder data as the primary height sensor, have bad range measurements
 		// and are on the ground, then synthesise a measurement at the expected on ground value
@@ -883,7 +883,7 @@ void Ekf::controlHeightFusion()
 
 		break;
 
-	case VDIST_SENSOR_GPS:
+	case VDIST_SENSOR::GPS:
 
 		// NOTE: emergency fallback due to extended loss of currently selected sensor data or failure
 		// to pass innovation cinsistency checks is handled elsewhere in Ekf::controlHeightSensorTimeouts.
@@ -909,7 +909,7 @@ void Ekf::controlHeightFusion()
 
 		break;
 
-	case VDIST_SENSOR_EV:
+	case VDIST_SENSOR::EV:
 
 		// don't start using EV data unless data is arriving frequently
 		if (!_control_status.flags.ev_hgt && isRecent(_time_last_ext_vision, 2 * EV_MAX_INTERVAL)) {

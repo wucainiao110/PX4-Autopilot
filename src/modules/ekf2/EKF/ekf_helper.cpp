@@ -467,7 +467,7 @@ bool Ekf::resetMagHeading(bool increase_yaw_var, bool update_buffer)
 
 	const bool heading_required_for_navigation = _control_status.flags.gps || _control_status.flags.ev_pos;
 
-	if ((_params.mag_fusion_type <= MAG_FUSE_TYPE_3D) || ((_params.mag_fusion_type == MAG_FUSE_TYPE_INDOOR) && heading_required_for_navigation)) {
+	if ((_params.mag_fusion_type <= MAG_FUSE_TYPE::MAG_3D) || ((_params.mag_fusion_type == MAG_FUSE_TYPE::INDOOR) && heading_required_for_navigation)) {
 
 		// rotate the magnetometer measurements into earth frame using a zero yaw angle
 		const Dcmf R_to_earth = updateYawInRotMat(0.f, _R_to_earth);
@@ -480,7 +480,7 @@ bool Ekf::resetMagHeading(bool increase_yaw_var, bool update_buffer)
 			yaw_new_variance = sq(fmaxf(_params.mag_heading_noise, 1.0e-2f));
 		}
 
-	} else if (_params.mag_fusion_type == MAG_FUSE_TYPE_INDOOR) {
+	} else if (_params.mag_fusion_type == MAG_FUSE_TYPE::INDOOR) {
 		// we are operating temporarily without knowing the earth frame yaw angle
 		return true;
 

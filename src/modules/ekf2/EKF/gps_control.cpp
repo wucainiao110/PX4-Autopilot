@@ -136,7 +136,7 @@ void Ekf::controlGpsFusion()
 					startGpsFusion();
 				}
 
-			} else if (gps_checks_passing && !_control_status.flags.yaw_align && (_params.mag_fusion_type == MAG_FUSE_TYPE_NONE)) {
+			} else if (gps_checks_passing && !_control_status.flags.yaw_align && (_params.mag_fusion_type == MAG_FUSE_TYPE::NONE)) {
 				// If no mag is used, align using the yaw estimator (if available)
 				if (resetYawToEKFGSF()) {
 					_information_events.flags.yaw_aligned_to_imu_gps = true;

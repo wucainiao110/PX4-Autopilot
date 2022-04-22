@@ -308,7 +308,7 @@ void EKF2::Run()
 		}
 
 		// if using mag ensure sensor interval minimum is sufficient to accommodate system averaged mag output
-		if (_params->mag_fusion_type != MAG_FUSE_TYPE_NONE) {
+		if (_params->mag_fusion_type != MAG_FUSE_TYPE::NONE) {
 			float sens_mag_rate = 0.f;
 
 			if (param_get(param_find("SENS_MAG_RATE"), &sens_mag_rate) == PX4_OK) {
