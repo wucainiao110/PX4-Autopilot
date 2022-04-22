@@ -94,6 +94,8 @@ private:
 
 	void update_gps_position();
 
+	void update_motion_capture_odometry();
+
 	void update_vehicle_local_position();
 
 	void update_parameters(bool force = false);
@@ -117,7 +119,7 @@ private:
 	uORB::Subscription 		_vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
 	uORB::Subscription 		_vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::Subscription		_vision_odom_sub{ORB_ID(vehicle_visual_odometry)};
-	uORB::Subscription		_mocap_odom_sub{ORB_ID(vehicle_mocap_odometry)};
+	uORB::Subscription 		_vehicle_mocap_odometry_sub{ORB_ID(vehicle_mocap_odometry)};
 	uORB::Subscription		_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
 
 	uORB::Publication<vehicle_attitude_s>	_att_pub{ORB_ID(vehicle_attitude)};
@@ -277,34 +279,7 @@ AttitudeEstimatorQ::Run()
 			}
 		}
 
-		if (_mocap_odom_sub.updated()) {
-			vehicle_odometry_s mocap;
-
-			if (_mocap_odom_sub.copy(&mocap)) {
-				// validation check for mocap attitude data
-				bool mocap_att_valid = PX4_ISFINITE(mocap.q[0])
-						       && (PX4_ISFINITE(mocap.pose_covariance[mocap.COVARIANCE_MATRIX_ROLL_VARIANCE]) ? sqrtf(fmaxf(
-								       mocap.pose_covariance[mocap.COVARIANCE_MATRIX_ROLL_VARIANCE],
-								       fmaxf(mocap.pose_covariance[mocap.COVARIANCE_MATRIX_PITCH_VARIANCE],
-										       mocap.pose_covariance[mocap.COVARIANCE_MATRIX_YAW_VARIANCE]))) <= _eo_max_std_dev : true);
-
-				if (mocap_att_valid) {
-					Dcmf Rmoc = Quatf(mocap.q);
-					Vector3f v(1.0f, 0.0f, 0.4f);
-
-					// Rmoc is Rwr (robot respect to world) while v is respect to world.
-					// Hence Rmoc must be transposed having (Rwr)' * Vw
-					// Rrw * Vw = vn. This way we have consistency
-					_mocap_hdg = Rmoc.transpose() * v;
-
-					// Motion Capture external heading usage (ATT_EXT_HDG_M 2)
-					if (_param_att_ext_hdg_m.get() == 2) {
-						// Check for timeouts on data
-						_ext_hdg_good = mocap.timestamp_sample > 0 && (hrt_elapsed_time(&mocap.timestamp_sample) < 500000);
-					}
-				}
-			}
-		}
+		update_motion_capture_odometry();
 
 		update_gps_position();
 
@@ -337,6 +312,38 @@ void AttitudeEstimatorQ::update_gps_position()
 			if (_param_att_mag_decl_a.get() && (gps.eph < 20.0f)) {
 				// set magnetic declination automatically
 				update_mag_declination(get_mag_declination_radians(gps.lat, gps.lon));
+			}
+		}
+	}
+}
+
+void AttitudeEstimatorQ::update_motion_capture_odometry()
+{
+	if (_vehicle_mocap_odometry_sub.updated()) {
+		vehicle_odometry_s mocap;
+
+		if (_vehicle_mocap_odometry_sub.copy(&mocap)) {
+			// validation check for mocap attitude data
+			bool mocap_att_valid = PX4_ISFINITE(mocap.q[0])
+					       && (PX4_ISFINITE(mocap.pose_covariance[mocap.COVARIANCE_MATRIX_ROLL_VARIANCE]) ? sqrtf(fmaxf(
+							       mocap.pose_covariance[mocap.COVARIANCE_MATRIX_ROLL_VARIANCE],
+							       fmaxf(mocap.pose_covariance[mocap.COVARIANCE_MATRIX_PITCH_VARIANCE],
+									       mocap.pose_covariance[mocap.COVARIANCE_MATRIX_YAW_VARIANCE]))) <= _eo_max_std_dev : true);
+
+			if (mocap_att_valid) {
+				Dcmf Rmoc = Quatf(mocap.q);
+				Vector3f v(1.0f, 0.0f, 0.4f);
+
+				// Rmoc is Rwr (robot respect to world) while v is respect to world.
+				// Hence Rmoc must be transposed having (Rwr)' * Vw
+				// Rrw * Vw = vn. This way we have consistency
+				_mocap_hdg = Rmoc.transpose() * v;
+
+				// Motion Capture external heading usage (ATT_EXT_HDG_M 2)
+				if (_param_att_ext_hdg_m.get() == 2) {
+					// Check for timeouts on data
+					_ext_hdg_good = mocap.timestamp_sample > 0 && (hrt_elapsed_time(&mocap.timestamp_sample) < 500000);
+				}
 			}
 		}
 	}
