@@ -92,6 +92,8 @@ private:
 
 	void Run() override;
 
+	bool init_attitude_q();
+
 	void update_gps_position();
 
 	void update_magnetometer();
@@ -107,8 +109,6 @@ private:
 	void update_vehicle_local_position();
 
 	void update_parameters(bool force = false);
-
-	bool init_attq();
 
 	bool update(float dt);
 
@@ -431,7 +431,7 @@ AttitudeEstimatorQ::update_parameters(bool force)
 }
 
 bool
-AttitudeEstimatorQ::init_attq()
+AttitudeEstimatorQ::init_attitude_q()
 {
 	// Rotation matrix can be easily constructed from acceleration and mag field vectors
 	// 'k' is Earth Z axis (Down) unit vector in body frame
@@ -481,7 +481,7 @@ AttitudeEstimatorQ::update(float dt)
 			return false;
 		}
 
-		return init_attq();
+		return init_attitude_q();
 	}
 
 	Quatf q_last = _q;
