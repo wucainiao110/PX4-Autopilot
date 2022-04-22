@@ -100,6 +100,8 @@ private:
 
 	void update_visual_odometry();
 
+	void update_vehicle_attitude();
+
 	void update_vehicle_local_position();
 
 	void update_parameters(bool force = false);
@@ -120,13 +122,16 @@ private:
 
 	uORB::SubscriptionInterval	_parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
+	uORB::Subscription 		_vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
 	uORB::Subscription 		_vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
 	uORB::Subscription 		_vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::Subscription 		_vehicle_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
 	uORB::Subscription 		_vehicle_mocap_odometry_sub{ORB_ID(vehicle_mocap_odometry)};
 	uORB::Subscription 		_vehicle_visual_odometry_sub{ORB_ID(vehicle_visual_odometry)};
 
-	uORB::Publication<vehicle_attitude_s>	_att_pub{ORB_ID(vehicle_attitude)};
+	uORB::Publication<vehicle_attitude_s> _vehicle_attitude_pub{ORB_ID(vehicle_attitude)};
+
+	sensor_combined_s _sensors;
 
 	float		_mag_decl{0.0f};
 	float		_bias_max{0.0f};
@@ -208,23 +213,21 @@ AttitudeEstimatorQ::Run()
 		return;
 	}
 
-	sensor_combined_s sensors;
-
-	if (_sensors_sub.update(&sensors)) {
+	if (_sensors_sub.update(&_sensors)) {
 
 		update_parameters();
 
 		// Feed validator with recent sensor data
-		if (sensors.timestamp > 0) {
-			_gyro(0) = sensors.gyro_rad[0];
-			_gyro(1) = sensors.gyro_rad[1];
-			_gyro(2) = sensors.gyro_rad[2];
+		if (_sensors.timestamp > 0) {
+			_gyro(0) = _sensors.gyro_rad[0];
+			_gyro(1) = _sensors.gyro_rad[1];
+			_gyro(2) = _sensors.gyro_rad[2];
 		}
 
-		if (sensors.accelerometer_timestamp_relative != sensor_combined_s::RELATIVE_TIMESTAMP_INVALID) {
-			_accel(0) = sensors.accelerometer_m_s2[0];
-			_accel(1) = sensors.accelerometer_m_s2[1];
-			_accel(2) = sensors.accelerometer_m_s2[2];
+		if (_sensors.accelerometer_timestamp_relative != sensor_combined_s::RELATIVE_TIMESTAMP_INVALID) {
+			_accel(0) = _sensors.accelerometer_m_s2[0];
+			_accel(1) = _sensors.accelerometer_m_s2[1];
+			_accel(2) = _sensors.accelerometer_m_s2[2];
 
 			if (_accel.length() < 0.01f) {
 				PX4_ERR("degenerate accel!");
@@ -247,21 +250,7 @@ AttitudeEstimatorQ::Run()
 
 		update_vehicle_local_position();
 
-		/* time from previous iteration */
-		hrt_abstime now = hrt_absolute_time();
-		const float dt = math::constrain((now - _last_time) / 1e6f, _dt_min, _dt_max);
-		_last_time = now;
-
-		if (update(dt)) {
-			vehicle_attitude_s att = {};
-			att.timestamp_sample = sensors.timestamp;
-			_q.copyTo(att.q);
-
-			/* the instance count is not used here */
-			att.timestamp = hrt_absolute_time();
-			_att_pub.publish(att);
-
-		}
+		update_vehicle_attitude();
 	}
 }
 
@@ -327,6 +316,24 @@ void AttitudeEstimatorQ::update_motion_capture_odometry()
 				}
 			}
 		}
+	}
+}
+
+void AttitudeEstimatorQ::update_vehicle_attitude()
+{
+	// time from previous iteration
+	hrt_abstime now = hrt_absolute_time();
+	const float dt = math::constrain((now - _last_time) / 1e6f, _dt_min, _dt_max);
+	_last_time = now;
+
+	if (update(dt)) {
+		vehicle_attitude_s vehicle_attitude{};
+		vehicle_attitude.timestamp_sample = _sensors.timestamp;
+		_q.copyTo(vehicle_attitude.q);
+
+		/* the instance count is not used here */
+		vehicle_attitude.timestamp = hrt_absolute_time();
+		_vehicle_attitude_pub.publish(vehicle_attitude);
 	}
 }
 
