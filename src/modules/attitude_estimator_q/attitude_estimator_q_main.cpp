@@ -98,6 +98,8 @@ private:
 
 	void update_motion_capture_odometry();
 
+	void update_sensors();
+
 	void update_visual_odometry();
 
 	void update_vehicle_attitude();
@@ -217,23 +219,7 @@ AttitudeEstimatorQ::Run()
 
 		update_parameters();
 
-		// Feed validator with recent sensor data
-		if (_sensors.timestamp > 0) {
-			_gyro(0) = _sensors.gyro_rad[0];
-			_gyro(1) = _sensors.gyro_rad[1];
-			_gyro(2) = _sensors.gyro_rad[2];
-		}
-
-		if (_sensors.accelerometer_timestamp_relative != sensor_combined_s::RELATIVE_TIMESTAMP_INVALID) {
-			_accel(0) = _sensors.accelerometer_m_s2[0];
-			_accel(1) = _sensors.accelerometer_m_s2[1];
-			_accel(2) = _sensors.accelerometer_m_s2[2];
-
-			if (_accel.length() < 0.01f) {
-				PX4_ERR("degenerate accel!");
-				return;
-			}
-		}
+		update_sensors();
 
 		update_magnetometer();
 
@@ -314,6 +300,29 @@ void AttitudeEstimatorQ::update_motion_capture_odometry()
 					// Check for timeouts on data
 					_ext_hdg_good = mocap.timestamp_sample > 0 && (hrt_elapsed_time(&mocap.timestamp_sample) < 500000);
 				}
+			}
+		}
+	}
+}
+
+void AttitudeEstimatorQ::update_sensors()
+{
+	if (_sensors_sub.copy(&_sensors)) {
+		// update validator with recent sensor data
+		if (_sensors.timestamp > 0) {
+			_gyro(0) = _sensors.gyro_rad[0];
+			_gyro(1) = _sensors.gyro_rad[1];
+			_gyro(2) = _sensors.gyro_rad[2];
+		}
+
+		if (_sensors.accelerometer_timestamp_relative != sensor_combined_s::RELATIVE_TIMESTAMP_INVALID) {
+			_accel(0) = _sensors.accelerometer_m_s2[0];
+			_accel(1) = _sensors.accelerometer_m_s2[1];
+			_accel(2) = _sensors.accelerometer_m_s2[2];
+
+			if (_accel.length() < 0.01f) {
+				PX4_ERR("degenerate accel!");
+				return;
 			}
 		}
 	}
