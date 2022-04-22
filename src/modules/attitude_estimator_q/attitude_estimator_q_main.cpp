@@ -217,25 +217,16 @@ AttitudeEstimatorQ::Run()
 
 	if (_sensors_sub.update(&_sensors)) {
 
-		update_parameters();
-
-		update_sensors();
-
-		update_magnetometer();
-
 		_data_good = true;
-
-		// Update vision and motion capture heading
 		_ext_hdg_good = false;
 
+		update_parameters();
+		update_sensors();
+		update_magnetometer();
 		update_visual_odometry();
-
 		update_motion_capture_odometry();
-
 		update_gps_position();
-
 		update_vehicle_local_position();
-
 		update_vehicle_attitude();
 	}
 }
