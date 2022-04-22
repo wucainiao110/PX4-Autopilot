@@ -96,6 +96,8 @@ private:
 
 	void update_motion_capture_odometry();
 
+	void update_visual_odometry();
+
 	void update_vehicle_local_position();
 
 	void update_parameters(bool force = false);
@@ -118,8 +120,8 @@ private:
 
 	uORB::Subscription 		_vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
 	uORB::Subscription 		_vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
-	uORB::Subscription		_vision_odom_sub{ORB_ID(vehicle_visual_odometry)};
 	uORB::Subscription 		_vehicle_mocap_odometry_sub{ORB_ID(vehicle_mocap_odometry)};
+	uORB::Subscription 		_vehicle_visual_odometry_sub{ORB_ID(vehicle_visual_odometry)};
 	uORB::Subscription		_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
 
 	uORB::Publication<vehicle_attitude_s>	_att_pub{ORB_ID(vehicle_attitude)};
@@ -250,34 +252,7 @@ AttitudeEstimatorQ::Run()
 		// Update vision and motion capture heading
 		_ext_hdg_good = false;
 
-		if (_vision_odom_sub.updated()) {
-			vehicle_odometry_s vision;
-
-			if (_vision_odom_sub.copy(&vision)) {
-				// validation check for vision attitude data
-				bool vision_att_valid = PX4_ISFINITE(vision.q[0])
-							&& (PX4_ISFINITE(vision.pose_covariance[vision.COVARIANCE_MATRIX_ROLL_VARIANCE]) ? sqrtf(fmaxf(
-									vision.pose_covariance[vision.COVARIANCE_MATRIX_ROLL_VARIANCE],
-									fmaxf(vision.pose_covariance[vision.COVARIANCE_MATRIX_PITCH_VARIANCE],
-											vision.pose_covariance[vision.COVARIANCE_MATRIX_YAW_VARIANCE]))) <= _eo_max_std_dev : true);
-
-				if (vision_att_valid) {
-					Dcmf Rvis = Quatf(vision.q);
-					Vector3f v(1.0f, 0.0f, 0.4f);
-
-					// Rvis is Rwr (robot respect to world) while v is respect to world.
-					// Hence Rvis must be transposed having (Rwr)' * Vw
-					// Rrw * Vw = vn. This way we have consistency
-					_vision_hdg = Rvis.transpose() * v;
-
-					// vision external heading usage (ATT_EXT_HDG_M 1)
-					if (_param_att_ext_hdg_m.get() == 1) {
-						// Check for timeouts on data
-						_ext_hdg_good = vision.timestamp_sample > 0 && (hrt_elapsed_time(&vision.timestamp_sample) < 500000);
-					}
-				}
-			}
-		}
+		update_visual_odometry();
 
 		update_motion_capture_odometry();
 
@@ -377,6 +352,38 @@ void AttitudeEstimatorQ::update_vehicle_local_position()
 				_pos_acc.zero();
 				_vel_prev.zero();
 				_vel_prev_t = 0;
+			}
+		}
+	}
+}
+
+void AttitudeEstimatorQ::update_visual_odometry()
+{
+	if (_vehicle_visual_odometry_sub.updated()) {
+		vehicle_odometry_s vision;
+
+		if (_vehicle_visual_odometry_sub.copy(&vision)) {
+			// validation check for vision attitude data
+			bool vision_att_valid = PX4_ISFINITE(vision.q[0])
+						&& (PX4_ISFINITE(vision.pose_covariance[vision.COVARIANCE_MATRIX_ROLL_VARIANCE]) ? sqrtf(fmaxf(
+								vision.pose_covariance[vision.COVARIANCE_MATRIX_ROLL_VARIANCE],
+								fmaxf(vision.pose_covariance[vision.COVARIANCE_MATRIX_PITCH_VARIANCE],
+										vision.pose_covariance[vision.COVARIANCE_MATRIX_YAW_VARIANCE]))) <= _eo_max_std_dev : true);
+
+			if (vision_att_valid) {
+				Dcmf Rvis = Quatf(vision.q);
+				Vector3f v(1.0f, 0.0f, 0.4f);
+
+				// Rvis is Rwr (robot respect to world) while v is respect to world.
+				// Hence Rvis must be transposed having (Rwr)' * Vw
+				// Rrw * Vw = vn. This way we have consistency
+				_vision_hdg = Rvis.transpose() * v;
+
+				// vision external heading usage (ATT_EXT_HDG_M 1)
+				if (_param_att_ext_hdg_m.get() == 1) {
+					// Check for timeouts on data
+					_ext_hdg_good = vision.timestamp_sample > 0 && (hrt_elapsed_time(&vision.timestamp_sample) < 500000);
+				}
 			}
 		}
 	}
