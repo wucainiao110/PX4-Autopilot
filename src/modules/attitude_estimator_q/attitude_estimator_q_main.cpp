@@ -92,6 +92,8 @@ private:
 
 	void Run() override;
 
+	void update_gps_position();
+
 	void update_parameters(bool force = false);
 
 	bool init_attq();
@@ -109,8 +111,9 @@ private:
 	uORB::SubscriptionCallbackWorkItem _sensors_sub{this, ORB_ID(sensor_combined)};
 
 	uORB::SubscriptionInterval	_parameter_update_sub{ORB_ID(parameter_update), 1_s};
-	uORB::Subscription		_gps_sub{ORB_ID(vehicle_gps_position)};
-	uORB::Subscription		_local_position_sub{ORB_ID(vehicle_local_position)};
+
+	uORB::Subscription 		_vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
+	uORB::Subscription 		_local_position_sub{ORB_ID(vehicle_local_position)};
 	uORB::Subscription		_vision_odom_sub{ORB_ID(vehicle_visual_odometry)};
 	uORB::Subscription		_mocap_odom_sub{ORB_ID(vehicle_mocap_odometry)};
 	uORB::Subscription		_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
@@ -143,16 +146,16 @@ private:
 	bool		_ext_hdg_good{false};
 
 	DEFINE_PARAMETERS(
-		(ParamFloat<px4::params::ATT_W_ACC>) _param_att_w_acc,
-		(ParamFloat<px4::params::ATT_W_MAG>) _param_att_w_mag,
-		(ParamFloat<px4::params::ATT_W_EXT_HDG>) _param_att_w_ext_hdg,
+		(ParamFloat<px4::params::ATT_W_ACC>)       _param_att_w_acc,
+		(ParamFloat<px4::params::ATT_W_MAG>)       _param_att_w_mag,
+		(ParamFloat<px4::params::ATT_W_EXT_HDG>)   _param_att_w_ext_hdg,
 		(ParamFloat<px4::params::ATT_W_GYRO_BIAS>) _param_att_w_gyro_bias,
-		(ParamFloat<px4::params::ATT_MAG_DECL>) _param_att_mag_decl,
-		(ParamInt<px4::params::ATT_MAG_DECL_A>) _param_att_mag_decl_a,
-		(ParamInt<px4::params::ATT_EXT_HDG_M>) _param_att_ext_hdg_m,
-		(ParamInt<px4::params::ATT_ACC_COMP>) _param_att_acc_comp,
-		(ParamFloat<px4::params::ATT_BIAS_MAX>) _param_att_bias_mas,
-		(ParamInt<px4::params::SYS_HAS_MAG>) _param_sys_has_mag
+		(ParamFloat<px4::params::ATT_MAG_DECL>)    _param_att_mag_decl,
+		(ParamInt<px4::params::ATT_MAG_DECL_A>)    _param_att_mag_decl_a,
+		(ParamInt<px4::params::ATT_EXT_HDG_M>)     _param_att_ext_hdg_m,
+		(ParamInt<px4::params::ATT_ACC_COMP>)      _param_att_acc_comp,
+		(ParamFloat<px4::params::ATT_BIAS_MAX>)    _param_att_bias_mas,
+		(ParamInt<px4::params::SYS_HAS_MAG>)       _param_sys_has_mag
 	)
 };
 
@@ -301,16 +304,7 @@ AttitudeEstimatorQ::Run()
 			}
 		}
 
-		if (_gps_sub.updated()) {
-			vehicle_gps_position_s gps;
-
-			if (_gps_sub.copy(&gps)) {
-				if (_param_att_mag_decl_a.get() && (gps.eph < 20.0f)) {
-					/* set magnetic declination automatically */
-					update_mag_declination(get_mag_declination_radians(gps.lat, gps.lon));
-				}
-			}
-		}
+		update_gps_position();
 
 		if (_local_position_sub.updated()) {
 			vehicle_local_position_s lpos;
@@ -356,6 +350,20 @@ AttitudeEstimatorQ::Run()
 			att.timestamp = hrt_absolute_time();
 			_att_pub.publish(att);
 
+		}
+	}
+}
+
+void AttitudeEstimatorQ::update_gps_position()
+{
+	if (_vehicle_gps_position_sub.updated()) {
+		vehicle_gps_position_s gps;
+
+		if (_vehicle_gps_position_sub.copy(&gps)) {
+			if (_param_att_mag_decl_a.get() && (gps.eph < 20.0f)) {
+				// set magnetic declination automatically
+				update_mag_declination(get_mag_declination_radians(gps.lat, gps.lon));
+			}
 		}
 	}
 }
