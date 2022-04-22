@@ -94,6 +94,8 @@ private:
 
 	void update_gps_position();
 
+	void update_magnetometer();
+
 	void update_motion_capture_odometry();
 
 	void update_visual_odometry();
@@ -120,9 +122,9 @@ private:
 
 	uORB::Subscription 		_vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
 	uORB::Subscription 		_vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
+	uORB::Subscription 		_vehicle_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
 	uORB::Subscription 		_vehicle_mocap_odometry_sub{ORB_ID(vehicle_mocap_odometry)};
 	uORB::Subscription 		_vehicle_visual_odometry_sub{ORB_ID(vehicle_visual_odometry)};
-	uORB::Subscription		_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
 
 	uORB::Publication<vehicle_attitude_s>	_att_pub{ORB_ID(vehicle_attitude)};
 
@@ -230,22 +232,7 @@ AttitudeEstimatorQ::Run()
 			}
 		}
 
-		// Update magnetometer
-		if (_magnetometer_sub.updated()) {
-			vehicle_magnetometer_s magnetometer;
-
-			if (_magnetometer_sub.copy(&magnetometer)) {
-				_mag(0) = magnetometer.magnetometer_ga[0];
-				_mag(1) = magnetometer.magnetometer_ga[1];
-				_mag(2) = magnetometer.magnetometer_ga[2];
-
-				if (_mag.length() < 0.01f) {
-					PX4_ERR("degenerate mag!");
-					return;
-				}
-			}
-
-		}
+		update_magnetometer();
 
 		_data_good = true;
 
@@ -287,6 +274,25 @@ void AttitudeEstimatorQ::update_gps_position()
 			if (_param_att_mag_decl_a.get() && (gps.eph < 20.0f)) {
 				// set magnetic declination automatically
 				update_mag_declination(get_mag_declination_radians(gps.lat, gps.lon));
+			}
+		}
+	}
+}
+
+void AttitudeEstimatorQ::update_magnetometer()
+{
+	// Update magnetometer
+	if (_vehicle_magnetometer_sub.updated()) {
+		vehicle_magnetometer_s magnetometer;
+
+		if (_vehicle_magnetometer_sub.copy(&magnetometer)) {
+			_mag(0) = magnetometer.magnetometer_ga[0];
+			_mag(1) = magnetometer.magnetometer_ga[1];
+			_mag(2) = magnetometer.magnetometer_ga[2];
+
+			if (_mag.length() < 0.01f) {
+				PX4_ERR("degenerate mag!");
+				return;
 			}
 		}
 	}
