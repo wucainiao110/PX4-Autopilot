@@ -193,8 +193,7 @@ AttitudeEstimatorQ::AttitudeEstimatorQ() :
 	update_parameters(true);
 }
 
-bool
-AttitudeEstimatorQ::init()
+bool AttitudeEstimatorQ::init()
 {
 	if (!_sensors_sub.registerCallback()) {
 		PX4_ERR("callback registration failed");
@@ -204,8 +203,7 @@ AttitudeEstimatorQ::init()
 	return true;
 }
 
-void
-AttitudeEstimatorQ::Run()
+void AttitudeEstimatorQ::Run()
 {
 	if (should_exit()) {
 		_sensors_sub.unregisterCallback();
@@ -402,8 +400,7 @@ void AttitudeEstimatorQ::update_visual_odometry()
 	}
 }
 
-void
-AttitudeEstimatorQ::update_parameters(bool force)
+void AttitudeEstimatorQ::update_parameters(bool force)
 {
 	// check for parameter updates
 	if (_parameter_update_sub.updated() || force) {
@@ -430,8 +427,7 @@ AttitudeEstimatorQ::update_parameters(bool force)
 	}
 }
 
-bool
-AttitudeEstimatorQ::init_attitude_q()
+bool AttitudeEstimatorQ::init_attitude_q()
 {
 	// Rotation matrix can be easily constructed from acceleration and mag field vectors
 	// 'k' is Earth Z axis (Down) unit vector in body frame
@@ -472,8 +468,7 @@ AttitudeEstimatorQ::init_attitude_q()
 	return _initialized;
 }
 
-bool
-AttitudeEstimatorQ::update(float dt)
+bool AttitudeEstimatorQ::update(float dt)
 {
 	if (!_initialized) {
 
@@ -585,8 +580,7 @@ AttitudeEstimatorQ::update(float dt)
 	return true;
 }
 
-void
-AttitudeEstimatorQ::update_mag_declination(float new_declination)
+void AttitudeEstimatorQ::update_mag_declination(float new_declination)
 {
 	// Apply initial declination or trivial rotations without changing estimation
 	if (!_initialized || fabsf(new_declination - _mag_decl) < 0.0001f) {
@@ -600,14 +594,12 @@ AttitudeEstimatorQ::update_mag_declination(float new_declination)
 	}
 }
 
-int
-AttitudeEstimatorQ::custom_command(int argc, char *argv[])
+int AttitudeEstimatorQ::custom_command(int argc, char *argv[])
 {
 	return print_usage("unknown command");
 }
 
-int
-AttitudeEstimatorQ::task_spawn(int argc, char *argv[])
+int AttitudeEstimatorQ::task_spawn(int argc, char *argv[])
 {
 	AttitudeEstimatorQ *instance = new AttitudeEstimatorQ();
 
@@ -630,8 +622,7 @@ AttitudeEstimatorQ::task_spawn(int argc, char *argv[])
 	return PX4_ERROR;
 }
 
-int
-AttitudeEstimatorQ::print_usage(const char *reason)
+int AttitudeEstimatorQ::print_usage(const char *reason)
 {
 	if (reason) {
 		PX4_WARN("%s\n", reason);
