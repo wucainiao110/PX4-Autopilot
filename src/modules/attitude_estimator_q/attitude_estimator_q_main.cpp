@@ -132,21 +132,21 @@ private:
 
 	uORB::Publication<vehicle_attitude_s> _vehicle_attitude_pub{ORB_ID(vehicle_attitude)};
 
-	Vector3f	_gyro;
-	Vector3f	_accel;
-	Vector3f	_mag;
+	Vector3f	_gyro{};
+	Vector3f	_accel{};
+	Vector3f	_mag{};
 
-	Vector3f	_vision_hdg;
-	Vector3f	_mocap_hdg;
+	Vector3f	_vision_hdg{};
+	Vector3f	_mocap_hdg{};
 
-	Quatf		_q;
-	Vector3f	_rates;
-	Vector3f	_gyro_bias;
+	Quatf		_q{};
+	Vector3f	_rates{};
+	Vector3f	_gyro_bias{};
 
-	Vector3f	_vel_prev;
+	Vector3f	_vel_prev{};
 	hrt_abstime	_vel_prev_t{};
 
-	Vector3f	_pos_acc;
+	Vector3f	_pos_acc{};
 
 	hrt_abstime	_imu_timestamp{};
 	hrt_abstime	_prev_imu_timestamp{};
