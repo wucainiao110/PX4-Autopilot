@@ -115,7 +115,6 @@ private:
 	// Update magnetic declination (in rads) immediately changing yaw rotation
 	void update_mag_declination(float new_declination);
 
-
 	const float _eo_max_std_dev = 100.0f;		/**< Maximum permissible standard deviation for estimated orientation */
 	const float _dt_min = 0.00001f;
 	const float _dt_max = 0.02f;
@@ -133,11 +132,6 @@ private:
 
 	uORB::Publication<vehicle_attitude_s> _vehicle_attitude_pub{ORB_ID(vehicle_attitude)};
 
-	sensor_combined_s _sensors;
-
-	float		_mag_decl{0.0f};
-	float		_bias_max{0.0f};
-
 	Vector3f	_gyro;
 	Vector3f	_accel;
 	Vector3f	_mag;
@@ -150,15 +144,19 @@ private:
 	Vector3f	_gyro_bias;
 
 	Vector3f	_vel_prev;
-	hrt_abstime	_vel_prev_t{0};
+	hrt_abstime	_vel_prev_t{};
 
 	Vector3f	_pos_acc;
 
-	hrt_abstime	_last_time{0};
+	hrt_abstime	_imu_timestamp{};
+	hrt_abstime	_prev_imu_timestamp{};
 
-	bool		_initialized{false};
+	float		_bias_max{};
+	float		_mag_decl{};
+
 	bool		_data_good{false};
 	bool		_ext_hdg_good{false};
+	bool		_initialized{false};
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::ATT_W_ACC>)       _param_att_w_acc,
@@ -215,8 +213,7 @@ AttitudeEstimatorQ::Run()
 		return;
 	}
 
-	if (_sensors_sub.update(&_sensors)) {
-
+	if (_sensors_sub.updated()) {
 		_data_good = true;
 		_ext_hdg_good = false;
 
@@ -236,7 +233,7 @@ void AttitudeEstimatorQ::update_gps_position()
 	if (_vehicle_gps_position_sub.updated()) {
 		vehicle_gps_position_s gps;
 
-		if (_vehicle_gps_position_sub.copy(&gps)) {
+		if (_vehicle_gps_position_sub.update(&gps)) {
 			if (_param_att_mag_decl_a.get() && (gps.eph < 20.0f)) {
 				// set magnetic declination automatically
 				update_mag_declination(get_mag_declination_radians(gps.lat, gps.lon));
@@ -251,7 +248,7 @@ void AttitudeEstimatorQ::update_magnetometer()
 	if (_vehicle_magnetometer_sub.updated()) {
 		vehicle_magnetometer_s magnetometer;
 
-		if (_vehicle_magnetometer_sub.copy(&magnetometer)) {
+		if (_vehicle_magnetometer_sub.update(&magnetometer)) {
 			_mag(0) = magnetometer.magnetometer_ga[0];
 			_mag(1) = magnetometer.magnetometer_ga[1];
 			_mag(2) = magnetometer.magnetometer_ga[2];
@@ -269,7 +266,7 @@ void AttitudeEstimatorQ::update_motion_capture_odometry()
 	if (_vehicle_mocap_odometry_sub.updated()) {
 		vehicle_odometry_s mocap;
 
-		if (_vehicle_mocap_odometry_sub.copy(&mocap)) {
+		if (_vehicle_mocap_odometry_sub.update(&mocap)) {
 			// validation check for mocap attitude data
 			bool mocap_att_valid = PX4_ISFINITE(mocap.q[0])
 					       && (PX4_ISFINITE(mocap.pose_covariance[mocap.COVARIANCE_MATRIX_ROLL_VARIANCE]) ? sqrtf(fmaxf(
@@ -298,18 +295,21 @@ void AttitudeEstimatorQ::update_motion_capture_odometry()
 
 void AttitudeEstimatorQ::update_sensors()
 {
-	if (_sensors_sub.copy(&_sensors)) {
+	sensor_combined_s sensors;
+
+	if (_sensors_sub.update(&sensors)) {
 		// update validator with recent sensor data
-		if (_sensors.timestamp > 0) {
-			_gyro(0) = _sensors.gyro_rad[0];
-			_gyro(1) = _sensors.gyro_rad[1];
-			_gyro(2) = _sensors.gyro_rad[2];
+		if (sensors.timestamp > 0) {
+			_imu_timestamp = sensors.timestamp;
+			_gyro(0) = sensors.gyro_rad[0];
+			_gyro(1) = sensors.gyro_rad[1];
+			_gyro(2) = sensors.gyro_rad[2];
 		}
 
-		if (_sensors.accelerometer_timestamp_relative != sensor_combined_s::RELATIVE_TIMESTAMP_INVALID) {
-			_accel(0) = _sensors.accelerometer_m_s2[0];
-			_accel(1) = _sensors.accelerometer_m_s2[1];
-			_accel(2) = _sensors.accelerometer_m_s2[2];
+		if (sensors.accelerometer_timestamp_relative != sensor_combined_s::RELATIVE_TIMESTAMP_INVALID) {
+			_accel(0) = sensors.accelerometer_m_s2[0];
+			_accel(1) = sensors.accelerometer_m_s2[1];
+			_accel(2) = sensors.accelerometer_m_s2[2];
 
 			if (_accel.length() < 0.01f) {
 				PX4_ERR("degenerate accel!");
@@ -323,12 +323,12 @@ void AttitudeEstimatorQ::update_vehicle_attitude()
 {
 	// time from previous iteration
 	hrt_abstime now = hrt_absolute_time();
-	const float dt = math::constrain((now - _last_time) / 1e6f, _dt_min, _dt_max);
-	_last_time = now;
+	const float dt = math::constrain((now - _prev_imu_timestamp) / 1e6f, _dt_min, _dt_max);
+	_prev_imu_timestamp = now;
 
 	if (update(dt)) {
 		vehicle_attitude_s vehicle_attitude{};
-		vehicle_attitude.timestamp_sample = _sensors.timestamp;
+		vehicle_attitude.timestamp_sample = _imu_timestamp;
 		_q.copyTo(vehicle_attitude.q);
 
 		/* the instance count is not used here */
@@ -342,7 +342,7 @@ void AttitudeEstimatorQ::update_vehicle_local_position()
 	if (_vehicle_local_position_sub.updated()) {
 		vehicle_local_position_s lpos;
 
-		if (_vehicle_local_position_sub.copy(&lpos)) {
+		if (_vehicle_local_position_sub.update(&lpos)) {
 
 			if (_param_att_acc_comp.get() && (hrt_elapsed_time(&lpos.timestamp) < 20_ms)
 			    && lpos.v_xy_valid && lpos.v_z_valid && (lpos.eph < 5.0f) && _initialized) {
@@ -375,7 +375,7 @@ void AttitudeEstimatorQ::update_visual_odometry()
 	if (_vehicle_visual_odometry_sub.updated()) {
 		vehicle_odometry_s vision;
 
-		if (_vehicle_visual_odometry_sub.copy(&vision)) {
+		if (_vehicle_visual_odometry_sub.update(&vision)) {
 			// validation check for vision attitude data
 			bool vision_att_valid = PX4_ISFINITE(vision.q[0])
 						&& (PX4_ISFINITE(vision.pose_covariance[vision.COVARIANCE_MATRIX_ROLL_VARIANCE]) ? sqrtf(fmaxf(
@@ -409,7 +409,7 @@ AttitudeEstimatorQ::update_parameters(bool force)
 	if (_parameter_update_sub.updated() || force) {
 		// clear update
 		parameter_update_s pupdate;
-		_parameter_update_sub.copy(&pupdate);
+		_parameter_update_sub.update(&pupdate);
 
 		// update parameters from storage
 		updateParams();
