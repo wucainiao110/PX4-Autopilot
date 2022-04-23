@@ -132,19 +132,19 @@ private:
 
 	uORB::Publication<vehicle_attitude_s> _vehicle_attitude_pub{ORB_ID(vehicle_attitude)};
 
-	Vector3f	_gyro{};
 	Vector3f	_accel{};
+	Vector3f	_gyro{};
 	Vector3f	_mag{};
 
-	Vector3f	_vision_hdg{};
 	Vector3f	_mocap_hdg{};
+	Vector3f	_vision_hdg{};
 
-	Quatf		_q{};
-	Vector3f	_rates{};
 	Vector3f	_gyro_bias{};
+	Vector3f	_rates{};
+	Quatf		_q{};
 
 	Vector3f	_vel_prev{};
-	hrt_abstime	_vel_prev_t{};
+	hrt_abstime	_vel_prev_timestamp{};
 
 	Vector3f	_pos_acc{};
 
@@ -176,20 +176,6 @@ AttitudeEstimatorQ::AttitudeEstimatorQ() :
 	ModuleParams(nullptr),
 	WorkItem(MODULE_NAME, px4::wq_configurations::nav_and_controllers)
 {
-	_vel_prev.zero();
-	_pos_acc.zero();
-
-	_gyro.zero();
-	_accel.zero();
-	_mag.zero();
-
-	_vision_hdg.zero();
-	_mocap_hdg.zero();
-
-	_q.zero();
-	_rates.zero();
-	_gyro_bias.zero();
-
 	update_parameters(true);
 }
 
@@ -349,20 +335,20 @@ void AttitudeEstimatorQ::update_vehicle_local_position()
 				const Vector3f vel(lpos.vx, lpos.vy, lpos.vz);
 
 				/* velocity updated */
-				if (_vel_prev_t != 0 && lpos.timestamp != _vel_prev_t) {
-					float vel_dt = (lpos.timestamp - _vel_prev_t) / 1e6f;
+				if (_vel_prev_timestamp != 0 && lpos.timestamp != _vel_prev_timestamp) {
+					float vel_dt = (lpos.timestamp - _vel_prev_timestamp) / 1e6f;
 					/* calculate acceleration in body frame */
 					_pos_acc = _q.rotateVectorInverse((vel - _vel_prev) / vel_dt);
 				}
 
-				_vel_prev_t = lpos.timestamp;
+				_vel_prev_timestamp = lpos.timestamp;
 				_vel_prev = vel;
 
 			} else {
 				/* position data is outdated, reset acceleration */
 				_pos_acc.zero();
 				_vel_prev.zero();
-				_vel_prev_t = 0;
+				_vel_prev_timestamp = 0;
 			}
 		}
 	}
