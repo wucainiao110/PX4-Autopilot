@@ -115,48 +115,47 @@ private:
 	// Update magnetic declination (in rads) immediately changing yaw rotation
 	void update_mag_declination(float new_declination);
 
-	const float _eo_max_std_dev = 100.0f;		/**< Maximum permissible standard deviation for estimated orientation */
+	const float _eo_max_std_dev = 100.0f;           /**< Maximum permissible standard deviation for estimated orientation */
 	const float _dt_min = 0.00001f;
 	const float _dt_max = 0.02f;
 
 	uORB::SubscriptionCallbackWorkItem _sensors_sub{this, ORB_ID(sensor_combined)};
 
-	uORB::SubscriptionInterval	_parameter_update_sub{ORB_ID(parameter_update), 1_s};
+	uORB::SubscriptionInterval _parameter_update_sub{ORB_ID(parameter_update), 1_s};
 
-	uORB::Subscription 		_vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
-	uORB::Subscription 		_vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
-	uORB::Subscription 		_vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
-	uORB::Subscription 		_vehicle_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
-	uORB::Subscription 		_vehicle_mocap_odometry_sub{ORB_ID(vehicle_mocap_odometry)};
-	uORB::Subscription 		_vehicle_visual_odometry_sub{ORB_ID(vehicle_visual_odometry)};
+	uORB::Subscription _vehicle_attitude_sub{ORB_ID(vehicle_attitude)};
+	uORB::Subscription _vehicle_gps_position_sub{ORB_ID(vehicle_gps_position)};
+	uORB::Subscription _vehicle_local_position_sub{ORB_ID(vehicle_local_position)};
+	uORB::Subscription _vehicle_magnetometer_sub{ORB_ID(vehicle_magnetometer)};
+	uORB::Subscription _vehicle_mocap_odometry_sub{ORB_ID(vehicle_mocap_odometry)};
+	uORB::Subscription _vehicle_visual_odometry_sub{ORB_ID(vehicle_visual_odometry)};
 
 	uORB::Publication<vehicle_attitude_s> _vehicle_attitude_pub{ORB_ID(vehicle_attitude)};
 
-	Vector3f	_accel{};
-	Vector3f	_gyro{};
-	Vector3f	_mag{};
+	Vector3f    _accel{};
+	Vector3f    _gyro{};
+	Vector3f    _gyro_bias{};
+	Vector3f    _rates{};
 
-	Vector3f	_mocap_hdg{};
-	Vector3f	_vision_hdg{};
+	Vector3f    _mag{};
+	Vector3f    _mocap_hdg{};
+	Vector3f    _vision_hdg{};
 
-	Vector3f	_gyro_bias{};
-	Vector3f	_rates{};
-	Quatf		_q{};
+	Vector3f    _pos_acc{};
+	Vector3f    _vel_prev{};
 
-	Vector3f	_vel_prev{};
-	hrt_abstime	_vel_prev_timestamp{};
+	Quatf       _q{};
 
-	Vector3f	_pos_acc{};
+	hrt_abstime _imu_timestamp{};
+	hrt_abstime _imu_prev_timestamp{};
+	hrt_abstime _vel_prev_timestamp{};
 
-	hrt_abstime	_imu_timestamp{};
-	hrt_abstime	_prev_imu_timestamp{};
+	float       _bias_max{};
+	float       _mag_decl{};
 
-	float		_bias_max{};
-	float		_mag_decl{};
-
-	bool		_data_good{false};
-	bool		_ext_hdg_good{false};
-	bool		_initialized{false};
+	bool        _data_good{false};
+	bool        _ext_hdg_good{false};
+	bool        _initialized{false};
 
 	DEFINE_PARAMETERS(
 		(ParamFloat<px4::params::ATT_W_ACC>)       _param_att_w_acc,
@@ -307,8 +306,8 @@ void AttitudeEstimatorQ::update_vehicle_attitude()
 {
 	// time from previous iteration
 	hrt_abstime now = hrt_absolute_time();
-	const float dt = math::constrain((now - _prev_imu_timestamp) / 1e6f, _dt_min, _dt_max);
-	_prev_imu_timestamp = now;
+	const float dt = math::constrain((now - _imu_prev_timestamp) / 1e6f, _dt_min, _dt_max);
+	_imu_prev_timestamp = now;
 
 	if (update(dt)) {
 		vehicle_attitude_s vehicle_attitude{};
