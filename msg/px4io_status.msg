@@ -19,7 +19,7 @@ bool status_rc_ppm
 bool status_rc_sbus
 bool status_rc_st24
 bool status_rc_sumd
-bool status_safety_off
+bool status_safety_button_pressed
 
 # PX4IO alarms (PX4IO_P_STATUS_ALARMS)
 bool alarm_pwm_error

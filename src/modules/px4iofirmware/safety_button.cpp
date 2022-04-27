@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /**
- * @file safety.cpp
+ * @file safety_button.cpp
  * Safety button logic.
  *
  * @author Lorenz Meier <lorenz@px4.io>
@@ -46,7 +46,7 @@
 
 #include "px4io.h"
 
-static struct hrt_call arming_call;
+static struct hrt_call safety_button_call;
 static struct hrt_call failsafe_call;
 
 /*
@@ -59,30 +59,23 @@ static unsigned counter = 0;
  * Define the various LED flash sequences for each system state.
  */
 #define LED_PATTERN_FMU_OK_TO_ARM		0x0003			/**< slow blinking			*/
-#define LED_PATTERN_FMU_REFUSE_TO_ARM		0x5555		/**< fast blinking			*/
+#define LED_PATTERN_FMU_REFUSE_TO_ARM	0x5555			/**< fast blinking			*/
 #define LED_PATTERN_IO_ARMED			0x5050			/**< long off, then double blink 	*/
 #define LED_PATTERN_FMU_ARMED			0x5500			/**< long off, then quad blink 		*/
 #define LED_PATTERN_IO_FMU_ARMED		0xffff			/**< constantly on			*/
 
 static unsigned blink_counter = 0;
 
-/*
- * IMPORTANT: The arming state machine critically
- * 	      depends on using the same threshold
- *            for arming and disarming. Since disarming
- *            is quite deadly for the system, a similar
- *            length can be justified.
- */
-#define ARM_COUNTER_THRESHOLD	10
+#define SAFETY_SWITCH_THRESHOLD	10
 
-static void safety_check_button(void *arg);
+static void safety_button_check(void *arg);
 static void failsafe_blink(void *arg);
 
 void
-safety_init(void)
+safety_button_init(void)
 {
 	/* arrange for the button handler to be called at 10Hz */
-	hrt_call_every(&arming_call, 1000, 100000, safety_check_button, NULL);
+	hrt_call_every(&safety_button_call, 1000, 100000, safety_button_check, NULL);
 }
 
 void
@@ -93,26 +86,23 @@ failsafe_led_init(void)
 }
 
 static void
-safety_check_button(void *arg)
+safety_button_check(void *arg)
 {
-	const bool safety_button_pressed = BUTTON_SAFETY;
+	const bool safety_button_pressed = px4_arch_gpioread(GPIO_BTN_SAFETY);
 
 	/* Keep safety button pressed for one second to turn off safety
 	 *
 	 * Note that safety cannot be turned on again by button because a button
 	 * hardware problem could accidentally disable it in flight.
 	 */
-	if (safety_button_pressed && !(r_status_flags & PX4IO_P_STATUS_FLAGS_SAFETY_OFF) &&
-	    (r_setup_arming & PX4IO_P_SETUP_ARMING_IO_ARM_OK)) {
+	if (safety_button_pressed && !(r_status_flags & PX4IO_P_STATUS_FLAGS_SAFETY_BUTTON_PRESSED)) {
 
-		if (counter <= ARM_COUNTER_THRESHOLD) {
+		if (counter <= SAFETY_SWITCH_THRESHOLD) {
 			counter++;
-
 		}
 
-		if (counter == ARM_COUNTER_THRESHOLD) {
-			// switch safety off -> ready to arm state
-			atomic_modify_or(&r_status_flags, PX4IO_P_STATUS_FLAGS_SAFETY_OFF);
+		if (counter == SAFETY_SWITCH_THRESHOLD) {
+			atomic_modify_or(&r_status_flags, PX4IO_P_STATUS_FLAGS_SAFETY_BUTTON_PRESSED);
 		}
 
 	} else {
@@ -122,7 +112,7 @@ safety_check_button(void *arg)
 	/* Select the appropriate LED flash pattern depending on the current IO/FMU arm state */
 	uint16_t pattern = LED_PATTERN_FMU_REFUSE_TO_ARM;
 
-	if (r_status_flags & PX4IO_P_STATUS_FLAGS_SAFETY_OFF) {
+	if (r_status_flags & PX4IO_P_STATUS_FLAGS_SAFETY_BUTTON_PRESSED) {
 		if (r_setup_arming & PX4IO_P_SETUP_ARMING_FMU_ARMED) {
 			pattern = LED_PATTERN_IO_FMU_ARMED;
 
