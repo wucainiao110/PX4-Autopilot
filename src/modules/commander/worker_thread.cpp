@@ -138,7 +138,7 @@ void WorkerThread::threadEntry()
 		break;
 
 	case Request::ESCCalibration:
-		_ret_value = do_esc_calibration(&_mavlink_log_pub);
+		_ret_value = do_esc_calibration(&_mavlink_log_pub, _safety);
 		break;
 
 	case Request::MagCalibrationQuick:
@@ -197,6 +197,11 @@ void WorkerThread::threadEntry()
 	}
 
 	_state.store((int)State::Finished); // set this last to signal the main thread we're done
+}
+
+void WorkerThread::setSafety(Safety *safety)
+{
+	_safety = safety;
 }
 
 void WorkerThread::setMagQuickData(float heading_rad, float lat, float lon)

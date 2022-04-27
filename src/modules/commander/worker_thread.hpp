@@ -33,7 +33,7 @@
 
 #pragma once
 
-
+#include "Safety.hpp"
 #include <px4_platform_common/atomic.h>
 #include <px4_platform_common/posix.h>
 #include <systemlib/mavlink_log.h>
@@ -70,6 +70,7 @@ public:
 	WorkerThread() = default;
 	~WorkerThread();
 
+	void setSafety(Safety *safety);
 	void setMagQuickData(float heading_rad, float lat, float lon);
 
 	void startTask(Request request);
@@ -98,6 +99,8 @@ private:
 	float _heading_radians;
 	float _latitude;
 	float _longitude;
+
+	Safety *_safety{nullptr};
 
 };
 

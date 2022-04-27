@@ -43,8 +43,9 @@
 #define ESC_CALIBRATION_H_
 
 #include <uORB/topics/actuator_armed.h>
+#include "Safety.hpp"
 
-int do_esc_calibration(orb_advert_t *mavlink_log_pub);
+int do_esc_calibration(orb_advert_t *mavlink_log_pub, Safety *safety);
 
 bool check_battery_disconnected(orb_advert_t *mavlink_log_pub);
 
