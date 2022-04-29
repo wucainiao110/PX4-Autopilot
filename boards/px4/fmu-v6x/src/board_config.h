@@ -211,17 +211,15 @@
 #define GPIO_HW_VER_REV_DRIVE  /* PG0 */ (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_2MHz|GPIO_OUTPUT_SET|GPIO_PORTG|GPIO_PIN0)
 #define GPIO_HW_REV_SENSE      /* PH4 */  GPIO_ADC3_INP15
 #define GPIO_HW_VER_SENSE      /* PH3 */  GPIO_ADC3_INP14
-#define HW_INFO_INIT           {'V','6','X','x', 'x',0}
-#define HW_INFO_INIT_VER       3 /* Offset in above string of the VER */
-#define HW_INFO_INIT_REV       4 /* Offset in above string of the REV */
+#define HW_INFO_INIT           "V6X%04x%04x"
 
 #define BOARD_NUM_SPI_CFG_HW_VERSIONS 2 // Rev 0 and Rev 3 Sensor sets
 //                 Base/FMUM
-#define V6X00   HW_VER_REV(0x0,0x0) // FMUV6X,                 Rev 0
-#define V6X01   HW_VER_REV(0x0,0x1) // FMUV6X,     BMI388 I2C2 Rev 1
-#define V6X03   HW_VER_REV(0x0,0x3) // FMUV6X,     Sensor Set  Rev 3
-#define V6X10   HW_VER_REV(0x1,0x0) // NO PX4IO,               Rev 0
-#define V6X13   HW_VER_REV(0x1,0x3) // NO PX4IO,   Sensor Set  Rev 3
+#define V6X00000000   HW_VER_REV(0x0,0x0) // FMUV6X,                 Rev 0
+#define V6X00000001   HW_VER_REV(0x0,0x1) // FMUV6X,     BMI388 I2C2 Rev 1
+#define V6X00000003   HW_VER_REV(0x0,0x3) // FMUV6X,     Sensor Set  Rev 3
+#define V6X00010000   HW_VER_REV(0x1,0x0) // NO PX4IO,               Rev 0
+#define V6X00010003   HW_VER_REV(0x1,0x3) // NO PX4IO,   Sensor Set  Rev 3
 
 
 /* HEATER

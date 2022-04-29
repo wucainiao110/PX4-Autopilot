@@ -32,7 +32,7 @@ bmi088 -G -R 4 -s start
 # Internal SPI bus ICM42688p
 icm42688p -R 6 -s start
 
-if ver hwtypecmp V6X03 V6X13
+if ver hwtypecmp V6X00000003 V6X00010003
 then
 	# Internal SPI bus ICM-42670-P (hard-mounted)
 	icm42670p -R 14 -s start
